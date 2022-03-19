@@ -1,0 +1,129 @@
+\newcount\trycount
+\trycount=0
+
+\def\@{sentinel}
+\def\empty{}
+
+\def\mainloop{%
+    \ifnum\trycount>5 \let\next\gameover \else \let\next\calc \fi
+    \next
+}
+\def\gameover{\immediate\write16{Game Over}}
+
+\newcount\charcheck
+\newcount\wordcheck
+\newif\ifinword
+\def\calc{%
+    %% read from prompt
+    \read16 to \answer
+    \wordcheck=1
+    \checkInWordList
+    \ifx\answer\expected
+        \def\next{\immediate\write16{Great}}%
+    \else\ifinword
+        \def\next{%
+            \def\remain{}%
+            \charcheck=0
+            \expandafter\def\csname show@0\endcsname{}%
+            \expandafter\def\csname show@1\endcsname{}%
+            \expandafter\def\csname show@2\endcsname{}%
+            \expandafter\def\csname show@3\endcsname{}%
+            \expandafter\def\csname show@4\endcsname{}%
+            \expandafter\expandafter\expandafter\check
+                \expandafter\answer\expandafter\@\expandafter\|%
+                \expected
+            \immediate\write16{
+                \csname show@0\endcsname
+                \csname show@1\endcsname
+                \csname show@2\endcsname
+                \csname show@3\endcsname
+                \csname show@4\endcsname
+            }%
+            \advance\trycount by 1
+            \mainloop}%
+    \else
+        \def\next{\immediate\write16{Not in the word list.}\mainloop}%
+    \fi\fi
+    \next
+}
+
+\def\check#1#2\|#3#4#5#6#7{%
+    \ifx#1\@%
+        \def\next{%
+            \charcheck=0
+            \checkRemain#2\@%
+        }
+    \else
+        \def\next{%
+            \if#1#3%
+                \expandafter\def\csname show@\the\charcheck\endcsname{#1* }%
+            \else
+                \edef\remain{\remain#3}%
+            \fi
+            \advance\charcheck by 1
+            \check#2#1\|#4#5#6#7#3}%
+    \fi
+    \next
+}
+\def\checkRemain#1{%
+    \ifx#1\@%
+        \let\next\relax
+    \else\expandafter\ifx\csname show@\the\charcheck\endcsname\empty
+        \edef\next{%
+            \def\noexpand\remain{}%
+            \noexpand\checkRemainRemain#1\remain\noexpand\@}%
+    \else
+        \def\next{%
+            \advance\charcheck by 1
+            \checkRemain}%
+    \fi\fi
+    \next
+}
+\def\checkRemainRemain#1#2{%
+    \ifx#2\@%
+        \def\next{%
+            \expandafter\def\csname show@\the\charcheck\endcsname{#1 }%
+            \advance\charcheck by 1
+            \checkRemain}%
+    \else\if#1#2%
+        \def\next{%
+            \expandafter\def\csname show@\the\charcheck\endcsname{#1+ }%
+            \checkRemainRetake}%
+    \else
+        \def\next{%
+            \edef\remain{\remain#2}%
+            \checkRemainRemain#1%
+        }%
+    \fi\fi
+    \next
+}
+\def\checkRemainRetake#1\@{%
+    \edef\remain{\remain#1}%
+    \advance\charcheck by 1
+    \checkRemain
+}
+\def\checkInWordList{%
+    \ifnum\wordcheck>\words
+        \let\next\inwordfalse
+    \else\expandafter\ifx\expandafter\answer\csname words@\the\wordcheck\endcsname
+        \let\next\inwordtrue
+    \else
+        \def\next{%
+            \advance\wordcheck by 1
+            \checkInWordList}
+    \fi\fi
+    \next
+}
+
+\input dict
+\expandafter\let\expandafter\expected\csname words@\the\numexpr\pdfuniformdeviate\words+1\endcsname
+
+
+\immediate\write16{Input exact 5 small letters.}
+\immediate\write16{The Suffix "*" means hit.}
+\immediate\write16{The Suffix "+" means blow.}
+\endlinechar=-1
+\mainloop
+\immediate\write16{The expected is "\expected".}%
+
+\bye
